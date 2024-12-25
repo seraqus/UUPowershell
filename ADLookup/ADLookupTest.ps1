@@ -101,12 +101,14 @@ $button.Add_Click({
     Clear-Variable -Name userGroups -Scope Global -ErrorAction SilentlyContinue
     Write-Host "Clearing user group cache..."
 
-    $inputValue = $userTextbox.Text.Trim() # Retrieve and trim the input text
+    # Retrieve and trim the input text
+    $inputValue = $userTextbox.Text.Trim()
 
     try {
-        # Attempt to retrieve domain controllers
+        # Attempt to retrieve ALL domain controllers
         $domainControllers = Get-ADDomainController -Filter * -ErrorAction Stop
 
+        #Error handling when unable to locate Domain Controllers
         if (-not $domainControllers) {
             [System.Windows.Forms.MessageBox]::Show("No domain controllers found.", "Error")
             return
@@ -114,7 +116,7 @@ $button.Add_Click({
 
         $latestUserData = $null
         $latestTimestamp = [datetime]::MinValue
-        $mostRecentDC = $null # Variable to track the domain controller with the most up-to-date info
+        $mostRecentDC = $null 
 
         foreach ($dc in $domainControllers) {
             try {
@@ -173,15 +175,6 @@ $button.Add_Click({
             }
         }
 
-        # Ensure $userGroups is not null or empty
-        if ($userGroups -and $userGroups.Count -gt 0) {
-            $userGroups = $userGroups | Where-Object { $_ -ne $null } | ForEach-Object {
-                (Get-ADGroup -Identity $_ -Server $mostRecentDC).Name
-            } | Sort-Object
-        } else {
-            throw "No groups found for the user."
-        }
-
         # Display current group memberships
         $currentGroupsTextbox.Text = $userGroups -join "`r`n"
 
@@ -189,6 +182,8 @@ $button.Add_Click({
         $desiredGroups = $textbox.Text -split "`r`n"
         $missingGroups = $desiredGroups | Where-Object { $_ -notin $userGroups } | Sort-Object
         $missingGroupsTextbox.Text = $missingGroups -join "`r`n"
+
+    #Error Handling for when unable to query AD    
     } catch {
         $errorMessage = $_.Exception.Message
         Write-Host "Error querying Active Directory: $errorMessage"
