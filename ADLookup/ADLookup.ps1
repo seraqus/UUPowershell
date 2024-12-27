@@ -8,11 +8,9 @@ $global:userValue = $null
 
 # Function to check and install Active Directory module
 function Ensure-ActiveDirectoryModule {
-    # Check if the Active Directory module is already available and import it
     if (Get-Module -ListAvailable -Name ActiveDirectory) {
         Import-Module ActiveDirectory -ErrorAction Stop
     } else {
-        # Show error pop-up and terminate the script if not available
         [System.Windows.Forms.MessageBox]::Show(
             "The Active Directory module is not available on this system. Please install RSAT from the DeploymentShare before continuing.",
             "Module Missing",
@@ -27,7 +25,7 @@ function Ensure-ActiveDirectoryModule {
 function Reset-TextFields {
     $userTextbox.Clear()
     $currentGroupsTextbox.Clear()
-    $textbox.Clear()
+    $compareGroupsTextbox.Clear()
     $missingGroupsTextbox.Clear()
     Write-Host "All text fields reset."
 }
@@ -35,12 +33,11 @@ function Reset-TextFields {
 # Function to reset all Group Fields
 function Reset-GroupFields {
     $currentGroupsTextbox.Clear()
-    $textbox.Clear()
     $missingGroupsTextbox.Clear()
     Write-Host "All group fields reset."
 }
 
-#Function to gather user text field info and trim into a global variable
+# Function to gather user text field info and trim into a global variable
 function Retrieve-User {
     $global:userValue = $userTextbox.Text.Trim()
     Write-Host "Selected user: $global:userValue"
@@ -73,10 +70,11 @@ Ensure-ActiveDirectoryModule
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "ADLookup"
 $form.Size = New-Object System.Drawing.Size(400, 600)
+$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::Sizable
 
 # Main Tab Control
 $mainTabControl = New-Object System.Windows.Forms.TabControl
-$mainTabControl.Size = New-Object System.Drawing.Size(400, 600)
+$mainTabControl.Dock = [System.Windows.Forms.DockStyle]::Fill
 $form.Controls.Add($mainTabControl)
 
     # User Tab
@@ -86,7 +84,7 @@ $form.Controls.Add($mainTabControl)
 
     # User Sub Tab Control
     $userSubTabControl = New-Object System.Windows.Forms.TabControl
-    $userSubTabControl.Size = New-Object System.Drawing.Size(400, 600)
+    $userSubTabControl.Dock = [System.Windows.Forms.DockStyle]::Fill
     $userTab.Controls.Add($userSubTabControl)
 
         # Info Sub Tab
@@ -110,6 +108,7 @@ $form.Controls.Add($mainTabControl)
             $userTextbox = New-Object System.Windows.Forms.TextBox
             $userTextbox.Size = New-Object System.Drawing.Size(360, 20)
             $userTextbox.Location = New-Object System.Drawing.Point(10, 30)
+            $userTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
             $comparisonSubTab.Controls.Add($userTextbox)
             Enable-CtrlA -textbox $userTextbox
 
@@ -118,6 +117,7 @@ $form.Controls.Add($mainTabControl)
             $compareButton.Text = "Compare"
             $compareButton.Size = New-Object System.Drawing.Size(150, 30)
             $compareButton.Location = New-Object System.Drawing.Point(10, 60)
+            $compareButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left
             $comparisonSubTab.Controls.Add($compareButton)
 
             # Current Groups label
@@ -133,6 +133,7 @@ $form.Controls.Add($mainTabControl)
             $currentGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
             $currentGroupsTextbox.ScrollBars = "Vertical"
             $currentGroupsTextbox.Location = New-Object System.Drawing.Point(10, 120)
+            $currentGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
             $comparisonSubTab.Controls.Add($currentGroupsTextbox)
             Enable-CtrlA -textbox $currentGroupsTextbox
 
@@ -144,13 +145,14 @@ $form.Controls.Add($mainTabControl)
             $comparisonSubTab.Controls.Add($label)
 
             # Comparison Groups textbox
-            $textbox = New-Object System.Windows.Forms.TextBox
-            $textbox.Multiline = $true
-            $textbox.Size = New-Object System.Drawing.Size(360, 100)
-            $textbox.ScrollBars = "Vertical"
-            $textbox.Location = New-Object System.Drawing.Point(10, 250)
-            $comparisonSubTab.Controls.Add($textbox)
-            Enable-CtrlA -textbox $textbox
+            $compareGroupsTextbox = New-Object System.Windows.Forms.TextBox
+            $compareGroupsTextbox.Multiline = $true
+            $compareGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
+            $compareGroupsTextbox.ScrollBars = "Vertical"
+            $compareGroupsTextbox.Location = New-Object System.Drawing.Point(10, 250)
+            $compareGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
+            $comparisonSubTab.Controls.Add($compareGroupsTextbox)
+            Enable-CtrlA -textbox $compareGroupsTextbox
 
             # Missing Groups label
             $missingGroupsLabel = New-Object System.Windows.Forms.Label
@@ -165,6 +167,7 @@ $form.Controls.Add($mainTabControl)
             $missingGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
             $missingGroupsTextbox.ScrollBars = "Vertical"
             $missingGroupsTextbox.Location = New-Object System.Drawing.Point(10, 380)
+            $missingGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right -bor [System.Windows.Forms.AnchorStyles]::Bottom
             $comparisonSubTab.Controls.Add($missingGroupsTextbox)
             Enable-CtrlA -textbox $missingGroupsTextbox
 
@@ -173,6 +176,7 @@ $form.Controls.Add($mainTabControl)
             $resetButton.Text = "Reset"
             $resetButton.Size = New-Object System.Drawing.Size(80, 30)
             $resetButton.Location = New-Object System.Drawing.Point(300, 500)
+            $resetButton.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Right
             $comparisonSubTab.Controls.Add($resetButton)
 
     # Computer Tab
@@ -189,7 +193,6 @@ $compareButton.Add_Click({
     Retrieve-User
 
     try {
-        # Attempt to retrieve domain controllers
         $domainControllers = Get-ADDomainController -Filter * -ErrorAction Stop
         Write-Host "Domain Controllers retrieved: $($domainControllers.Count)"
 
@@ -200,14 +203,12 @@ $compareButton.Add_Click({
 
         $latestUserData = $null
         $latestTimestamp = [datetime]::MinValue
-        $mostRecentDC = $null # Variable to track the domain controller with the most up-to-date info
+        $mostRecentDC = $null
 
         foreach ($dc in $domainControllers) {
             try {
-                # Log the domain controller being queried
                 Write-Host "Querying Domain Controller: $($dc.HostName)"
 
-                # Query user details from each domain controller
                 $currentUserData = if ($global:userValue -notmatch '\s') {
                     Get-ADUser -Filter "SamAccountName -eq '$global:userValue'" -Server $dc.HostName -Properties MemberOf, WhenChanged
                 } else {
@@ -221,7 +222,6 @@ $compareButton.Add_Click({
                     }
                 }
 
-                # Update the most recent data if necessary
                 if ($currentUserData -and $currentUserData.WhenChanged -gt $latestTimestamp) {
                     $latestTimestamp = $currentUserData.WhenChanged
                     $latestUserData = $currentUserData
@@ -233,7 +233,6 @@ $compareButton.Add_Click({
             }
         }
 
-        # Log the domain controller with the most up-to-date info
         if ($mostRecentDC) {
             Write-Host "Domain Controller with most up-to-date info: $mostRecentDC at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
         } else {
@@ -245,7 +244,6 @@ $compareButton.Add_Click({
             return
         }
 
-        # Explicitly refresh group data from the most recent DC
         $userGroups = if ($global:userValue -notmatch '\s') {
             (Get-ADUser -Filter "SamAccountName -eq '$global:userValue'" -Server $mostRecentDC -Properties MemberOf).MemberOf
         } else {
@@ -259,7 +257,6 @@ $compareButton.Add_Click({
             }
         }
 
-        # Ensure $userGroups is not null or empty
         if ($userGroups -and $userGroups.Count -gt 0) {
             $userGroups = $userGroups | Where-Object { $_ -ne $null } | ForEach-Object {
                 (Get-ADGroup -Identity $_ -Server $mostRecentDC).Name
@@ -268,11 +265,9 @@ $compareButton.Add_Click({
             throw "No groups found for the user."
         }
 
-        # Display current group memberships
         $currentGroupsTextbox.Text = $userGroups -join "`r`n"
 
-        # Compare with desired groups
-        $desiredGroups = $textbox.Text -split "`r`n"
+        $desiredGroups = $compareGroupsTextbox.Text -split "`r`n"
         $missingGroups = $desiredGroups | Where-Object { $_ -notin $userGroups } | Sort-Object
         $missingGroupsTextbox.Text = $missingGroups -join "`r`n"
     } catch {
