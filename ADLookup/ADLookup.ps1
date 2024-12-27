@@ -1,85 +1,141 @@
 Add-Type -AssemblyName System.Windows.Forms
 
+## Variables --------------------------------------------------------------------------------------------
+
+$global:userValue = $null
+
+## Functions --------------------------------------------------------------------------------------------
+
 # Function to check and install Active Directory module
 function Ensure-ActiveDirectoryModule {
-    # Function to check if the script is running as Administrator
-    function Is-Administrator {
-        return ([bool](net session 2>$null))
-    }
-
-    # Self-elevation logic
-    if (-not (Is-Administrator)) {
-        $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
-        Start-Process -FilePath "powershell.exe" -ArgumentList $arguments -Verb RunAs
-        exit
-    }
-
-    # Check if the Active Directory module is already available
-    if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
-        $result = [System.Windows.Forms.MessageBox]::Show(
-            "The Active Directory module for PowerShell is not installed. Would you like to install it now?",
-            "Module Missing",
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Question
-        )
-
-        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-            try {
-                # Determine the environment and install the module accordingly
-                if (Get-WindowsFeature -Name RSAT-AD-PowerShell -ErrorAction SilentlyContinue) {
-                    # Install RSAT-AD-PowerShell on server environments
-                    Install-WindowsFeature -Name RSAT-AD-PowerShell -IncludeManagementTools -ErrorAction Stop
-                } elseif ((Get-WindowsCapability -Name RSAT.ActiveDirectory.DS-LDS.Tools* -Online -ErrorAction SilentlyContinue).State -eq "NotPresent") {
-                    # Install RSAT tools on modern Windows clients
-                    Add-WindowsCapability -Online -Name RSAT.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0 -ErrorAction Stop
-                } else {
-                    # Fallback to installing module via PowerShell Gallery
-                    Install-Module -Name ActiveDirectory -Force -ErrorAction Stop
-                }
-                Import-Module ActiveDirectory -ErrorAction Stop
-                [System.Windows.Forms.MessageBox]::Show(
-                    "The Active Directory module has been successfully installed.",
-                    "Success",
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Information
-                )
-            } catch {
-                [System.Windows.Forms.MessageBox]::Show(
-                    "Failed to install the Active Directory module. Please ensure you have administrative privileges and internet access.",
-                    "Error",
-                    [System.Windows.Forms.MessageBoxButtons]::OK,
-                    [System.Windows.Forms.MessageBoxIcon]::Error
-                )
-                return
-            }
-        } else {
-            # User chose not to install the module
-            [System.Windows.Forms.MessageBox]::Show(
-                "The script cannot proceed without the Active Directory module.",
-                "Module Missing",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Error
-            )
-            return
-        }
-    } else {
-        # Module is already installed, just import it
+    # Check if the Active Directory module is already available and import it
+    if (Get-Module -ListAvailable -Name ActiveDirectory) {
         Import-Module ActiveDirectory -ErrorAction Stop
+    } else {
+        # Show error pop-up and terminate the script if not available
         [System.Windows.Forms.MessageBox]::Show(
-            "The Active Directory module is already available.",
-            "Module Available",
+            "The Active Directory module is not available on this system. Please install RSAT from the DeploymentShare before continuing.",
+            "Module Missing",
             [System.Windows.Forms.MessageBoxButtons]::OK,
-            [System.Windows.Forms.MessageBoxIcon]::Information
+            [System.Windows.Forms.MessageBoxIcon]::Error
         )
+        exit
     }
 }
 
-# Ensure the Active Directory module is available
+# Function to reset all Text Fields
+function Reset-TextFields {
+    $userTextbox.Clear()
+    $currentGroupsTextbox.Clear()
+    $textbox.Clear()
+    $missingGroupsTextbox.Clear()
+    Write-Host "All text fields reset."
+}
+
+# Function to reset all Group Fields
+function Reset-GroupFields {
+    $currentGroupsTextbox.Clear()
+    $textbox.Clear()
+    $missingGroupsTextbox.Clear()
+    Write-Host "All group fields reset."
+}
+
+#Function to gather user text field info and trim into a global variable
+function Gather-UserValue {
+    $global:userValue = $userTextbox.Text.Trim()
+    Write-Host "Selected user: $global:userValue"
+}
+
+# Function to enable Ctrl+A
+function Enable-CtrlA {
+    param($textbox)
+    $textbox.Add_KeyDown({
+        param($sender, $e)
+        if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::A) {
+            $sender.SelectAll()
+            $e.SuppressKeyPress = $true
+        }
+    })
+}
+
+# Function to reset local user group cache
+function Reset-LocalGroupCache {
+    Clear-Variable -Name userGroups -Scope Global -ErrorAction SilentlyContinue
+    Write-Host "User group cache cleared."    
+}
+
+# Function to retrieve user info from AD
+function Retrieve-UserInfo {
+    param (
+        [string]$userInput
+    )
+    
+    # Trim the input value
+    $userInput = $userInput.Trim()
+
+    if ($userInput -match '\s') {
+        # Input has two words, assume it's first and last name
+        $parts = $userInput -split '\s+', 2
+        if ($parts.Count -eq 2) {
+            $firstName = $parts[0]
+            $lastName = $parts[1]
+            $user = Get-ADUser -Filter {GivenName -eq $firstName -and Surname -eq $lastName} -Properties SamAccountName
+            if ($user) {
+                $global:retrievedUser = $user.SamAccountName
+                Write-Host "Retrieved User: $global:retrievedUser"
+                return $global:retrievedUser
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("No user found with the name $userInput", "Error")
+            }
+        }
+    } elseif ($userInput -notmatch '\s') {
+        # Input is one word, assume it might be a username, first name, or last name
+        $user = Get-ADUser -Filter {SamAccountName -eq $userInput} -Properties SamAccountName -ErrorAction SilentlyContinue
+        if ($user) {
+            # Valid username
+            $global:retrievedUser = $user.SamAccountName
+            Write-Host "Valid Username: $global:retrievedUser"
+            return $global:retrievedUser
+        } else {
+            # Search for first or last name
+            $users = Get-ADUser -Filter {GivenName -eq $userInput -or Surname -eq $userInput} -Properties SamAccountName, GivenName, Surname
+            if ($users.Count -gt 0) {
+                $userList = $users | Select-Object GivenName, Surname, SamAccountName
+                $userOptions = [System.Windows.Forms.ListBox]::new()
+                $userOptions.Size = New-Object System.Drawing.Size(200, 150)
+                foreach ($user in $userList) {
+                    $userOptions.Items.Add("$($user.GivenName) $($user.Surname) ($($user.SamAccountName))")
+                }
+                $result = [System.Windows.Forms.MessageBox]::Show($userOptions, "Select User", [System.Windows.Forms.MessageBoxButtons]::OKCancel)
+                if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+                    $selectedUser = $userOptions.SelectedItem -match '\(([^)]+)\)'
+                    if ($selectedUser) {
+                        $global:retrievedUser = $matches[1]
+                        Write-Host "Selected User: $global:retrievedUser"
+                        return $global:retrievedUser
+                    } else {
+                        [System.Windows.Forms.MessageBox]::Show("No user selected.", "Error")
+                    }
+                } else {
+                    [System.Windows.Forms.MessageBox]::Show("Action cancelled.", "Info")
+                }
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("No users found with the name $userInput", "Error")
+            }
+        }
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("Invalid input. Please enter a valid username or first and last name.", "Error")
+    }
+}
+
+## Main Program construction --------------------------------------------------------------------------------------------
+
+#Ensure correct AD module is loaded
 Ensure-ActiveDirectoryModule
 
 # Main Window
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "AD Group Comparison"
+$form.Text = "ADLookup"
 $form.Size = New-Object System.Drawing.Size(400, 600)
 
 # Username/Name label
@@ -147,9 +203,20 @@ $missingGroupsTextbox.ScrollBars = "Vertical"
 $missingGroupsTextbox.Location = New-Object System.Drawing.Point(10, 380)
 $form.Controls.Add($missingGroupsTextbox)
 
-# Check groups function
+# Reset button
+$resetButton = New-Object System.Windows.Forms.Button
+$resetButton.Text = "Reset"
+$resetButton.Size = New-Object System.Drawing.Size(80, 30)
+$resetButton.Location = New-Object System.Drawing.Point(300, 500) # Adjust as needed for proper placement
+$form.Controls.Add($resetButton)
+
+## Button Interactions --------------------------------------------------------------------------------------------
+
+#Compare Groups Button click
 $button.Add_Click({
-    $inputValue = $userTextbox.Text.Trim() # Retrieve and trim the input text
+    Reset-GroupFields
+    Reset-LocalGroupCache
+    Gather-UserValue
 
     try {
         # Attempt to retrieve domain controllers
@@ -170,10 +237,10 @@ $button.Add_Click({
                 Write-Host "Querying Domain Controller: $($dc.HostName)"
 
                 # Query user details from each domain controller
-                $currentUserData = if ($inputValue -notmatch '\s') {
-                    Get-ADUser -Filter "SamAccountName -eq '$inputValue'" -Server $dc.HostName -Properties MemberOf, WhenChanged
+                $currentUserData = if ($global:userValue -notmatch '\s') {
+                    Get-ADUser -Filter "SamAccountName -eq '$global:userValue'" -Server $dc.HostName -Properties MemberOf, WhenChanged
                 } else {
-                    $parts = $inputValue -split '\s+', 2
+                    $parts = $global:userValue -split '\s+', 2
                     if ($parts.Count -eq 2) {
                         $firstName = $parts[0]
                         $lastName = $parts[1]
@@ -208,10 +275,10 @@ $button.Add_Click({
         }
 
         # Explicitly refresh group data from the most recent DC
-        $userGroups = if ($inputValue -notmatch '\s') {
-            (Get-ADUser -Filter "SamAccountName -eq '$inputValue'" -Server $mostRecentDC -Properties MemberOf).MemberOf
+        $userGroups = if ($global:userValue -notmatch '\s') {
+            (Get-ADUser -Filter "SamAccountName -eq '$global:userValue'" -Server $mostRecentDC -Properties MemberOf).MemberOf
         } else {
-            $parts = $inputValue -split '\s+', 2
+            $parts = $global:userValue -split '\s+', 2
             if ($parts.Count -eq 2) {
                 $firstName = $parts[0]
                 $lastName = $parts[1]
@@ -253,37 +320,15 @@ $userTextbox.Add_KeyDown({
     }
 })
 
-# Function to enable Ctrl+A
-function Enable-CtrlA {
-    param($textbox)
-    $textbox.Add_KeyDown({
-        param($sender, $e)
-        if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::A) {
-            $sender.SelectAll()
-            $e.SuppressKeyPress = $true
-        }
-    })
-}
-
-# Apply Ctrl+A to all textboxes
+# Apply Ctrl+A to textboxes
 Enable-CtrlA -textbox $userTextbox
 Enable-CtrlA -textbox $currentGroupsTextbox
 Enable-CtrlA -textbox $textbox
 Enable-CtrlA -textbox $missingGroupsTextbox
 
-# Reset button
-$resetButton = New-Object System.Windows.Forms.Button
-$resetButton.Text = "Reset"
-$resetButton.Size = New-Object System.Drawing.Size(80, 30)
-$resetButton.Location = New-Object System.Drawing.Point(300, 500) # Adjust as needed for proper placement
-$form.Controls.Add($resetButton)
-
 # Reset button click event
 $resetButton.Add_Click({
-    $userTextbox.Clear()
-    $currentGroupsTextbox.Clear()
-    $textbox.Clear()
-    $missingGroupsTextbox.Clear()
+    Reset-TextFields
 })
 
 # Run the form
