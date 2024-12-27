@@ -1,10 +1,10 @@
 Add-Type -AssemblyName System.Windows.Forms
 
-## Variables --------------------------------------------------------------------------------------------
+## Variables ====================================================================================
 
 $global:userValue = $null
 
-## Functions --------------------------------------------------------------------------------------------
+## Functions ====================================================================================
 
 # Function to check and install Active Directory module
 function Ensure-ActiveDirectoryModule {
@@ -41,7 +41,7 @@ function Reset-GroupFields {
 }
 
 #Function to gather user text field info and trim into a global variable
-function Gather-UserValue {
+function Retrieve-User {
     $global:userValue = $userTextbox.Text.Trim()
     Write-Host "Selected user: $global:userValue"
 }
@@ -64,73 +64,9 @@ function Reset-LocalGroupCache {
     Write-Host "User group cache cleared."    
 }
 
-# Function to retrieve user info from AD
-function Retrieve-UserInfo {
-    param (
-        [string]$userInput
-    )
-    
-    # Trim the input value
-    $userInput = $userInput.Trim()
+## Main Program construction ====================================================================================
 
-    if ($userInput -match '\s') {
-        # Input has two words, assume it's first and last name
-        $parts = $userInput -split '\s+', 2
-        if ($parts.Count -eq 2) {
-            $firstName = $parts[0]
-            $lastName = $parts[1]
-            $user = Get-ADUser -Filter {GivenName -eq $firstName -and Surname -eq $lastName} -Properties SamAccountName
-            if ($user) {
-                $global:retrievedUser = $user.SamAccountName
-                Write-Host "Retrieved User: $global:retrievedUser"
-                return $global:retrievedUser
-            } else {
-                [System.Windows.Forms.MessageBox]::Show("No user found with the name $userInput", "Error")
-            }
-        }
-    } elseif ($userInput -notmatch '\s') {
-        # Input is one word, assume it might be a username, first name, or last name
-        $user = Get-ADUser -Filter {SamAccountName -eq $userInput} -Properties SamAccountName -ErrorAction SilentlyContinue
-        if ($user) {
-            # Valid username
-            $global:retrievedUser = $user.SamAccountName
-            Write-Host "Valid Username: $global:retrievedUser"
-            return $global:retrievedUser
-        } else {
-            # Search for first or last name
-            $users = Get-ADUser -Filter {GivenName -eq $userInput -or Surname -eq $userInput} -Properties SamAccountName, GivenName, Surname
-            if ($users.Count -gt 0) {
-                $userList = $users | Select-Object GivenName, Surname, SamAccountName
-                $userOptions = [System.Windows.Forms.ListBox]::new()
-                $userOptions.Size = New-Object System.Drawing.Size(200, 150)
-                foreach ($user in $userList) {
-                    $userOptions.Items.Add("$($user.GivenName) $($user.Surname) ($($user.SamAccountName))")
-                }
-                $result = [System.Windows.Forms.MessageBox]::Show($userOptions, "Select User", [System.Windows.Forms.MessageBoxButtons]::OKCancel)
-                if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-                    $selectedUser = $userOptions.SelectedItem -match '\(([^)]+)\)'
-                    if ($selectedUser) {
-                        $global:retrievedUser = $matches[1]
-                        Write-Host "Selected User: $global:retrievedUser"
-                        return $global:retrievedUser
-                    } else {
-                        [System.Windows.Forms.MessageBox]::Show("No user selected.", "Error")
-                    }
-                } else {
-                    [System.Windows.Forms.MessageBox]::Show("Action cancelled.", "Info")
-                }
-            } else {
-                [System.Windows.Forms.MessageBox]::Show("No users found with the name $userInput", "Error")
-            }
-        }
-    } else {
-        [System.Windows.Forms.MessageBox]::Show("Invalid input. Please enter a valid username or first and last name.", "Error")
-    }
-}
-
-## Main Program construction --------------------------------------------------------------------------------------------
-
-#Ensure correct AD module is loaded
+# Start-up Functions
 Ensure-ActiveDirectoryModule
 
 # Main Window
@@ -138,89 +74,124 @@ $form = New-Object System.Windows.Forms.Form
 $form.Text = "ADLookup"
 $form.Size = New-Object System.Drawing.Size(400, 600)
 
-# Username/Name label
-$userLabel = New-Object System.Windows.Forms.Label
-$userLabel.Text = "Enter Username/First and Last Name:"
-$userLabel.AutoSize = $true
-$userLabel.Location = New-Object System.Drawing.Point(10, 10)
-$form.Controls.Add($userLabel)
+# Main Tab Control
+$mainTabControl = New-Object System.Windows.Forms.TabControl
+$mainTabControl.Size = New-Object System.Drawing.Size(400, 600)
+$form.Controls.Add($mainTabControl)
 
-# Username/Name textbox
-$userTextbox = New-Object System.Windows.Forms.TextBox
-$userTextbox.Size = New-Object System.Drawing.Size(360, 20)
-$userTextbox.Location = New-Object System.Drawing.Point(10, 30)
-$form.Controls.Add($userTextbox)
+    # User Tab
+    $userTab = New-Object System.Windows.Forms.TabPage
+    $userTab.Text = "User"
+    $mainTabControl.TabPages.Add($userTab)
 
-# Check button
-$button = New-Object System.Windows.Forms.Button
-$button.Text = "Check Groups"
-$button.Size = New-Object System.Drawing.Size(150, 30)
-$button.Location = New-Object System.Drawing.Point(10, 60)
-$form.Controls.Add($button)
+    # User Sub Tab Control
+    $userSubTabControl = New-Object System.Windows.Forms.TabControl
+    $userSubTabControl.Size = New-Object System.Drawing.Size(400, 600)
+    $userTab.Controls.Add($userSubTabControl)
 
-# Current Groups label
-$currentGroupsLabel = New-Object System.Windows.Forms.Label
-$currentGroupsLabel.Text = "Current Groups:"
-$currentGroupsLabel.AutoSize = $true
-$currentGroupsLabel.Location = New-Object System.Drawing.Point(10, 100)
-$form.Controls.Add($currentGroupsLabel)
+        # Info Sub Tab
+        $userInfoSubTab = New-Object System.Windows.Forms.TabPage
+        $userInfoSubTab.Text = "Info"
+        $userSubTabControl.TabPages.Add($userInfoSubTab)
 
-# Current Groups textbox
-$currentGroupsTextbox = New-Object System.Windows.Forms.TextBox
-$currentGroupsTextbox.Multiline = $true
-$currentGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
-$currentGroupsTextbox.ScrollBars = "Vertical"
-$currentGroupsTextbox.Location = New-Object System.Drawing.Point(10, 120)
-$form.Controls.Add($currentGroupsTextbox)
+        # Comparison Sub Tab
+        $comparisonSubTab = New-Object System.Windows.Forms.TabPage
+        $comparisonSubTab.Text = "Comparison"
+        $userSubTabControl.TabPages.Add($comparisonSubTab)
 
-# Comparison Groups label
-$label = New-Object System.Windows.Forms.Label
-$label.Text = "Comparison Groups:"
-$label.AutoSize = $true
-$label.Location = New-Object System.Drawing.Point(10, 230)
-$form.Controls.Add($label)
+            # Username/Name label
+            $userLabel = New-Object System.Windows.Forms.Label
+            $userLabel.Text = "Enter Username/First and Last Name:"
+            $userLabel.AutoSize = $true
+            $userLabel.Location = New-Object System.Drawing.Point(10, 10)
+            $comparisonSubTab.Controls.Add($userLabel)
 
-# Comparison Groups textbox
-$textbox = New-Object System.Windows.Forms.TextBox
-$textbox.Multiline = $true
-$textbox.Size = New-Object System.Drawing.Size(360, 100)
-$textbox.ScrollBars = "Vertical"
-$textbox.Location = New-Object System.Drawing.Point(10, 250)
-$form.Controls.Add($textbox)
+            # Username/Name textbox
+            $userTextbox = New-Object System.Windows.Forms.TextBox
+            $userTextbox.Size = New-Object System.Drawing.Size(360, 20)
+            $userTextbox.Location = New-Object System.Drawing.Point(10, 30)
+            $comparisonSubTab.Controls.Add($userTextbox)
+            Enable-CtrlA -textbox $userTextbox
 
-# Missing Groups label
-$missingGroupsLabel = New-Object System.Windows.Forms.Label
-$missingGroupsLabel.Text = "Missing Groups:"
-$missingGroupsLabel.AutoSize = $true
-$missingGroupsLabel.Location = New-Object System.Drawing.Point(10, 360)
-$form.Controls.Add($missingGroupsLabel)
+            # Compare button
+            $compareButton = New-Object System.Windows.Forms.Button
+            $compareButton.Text = "Compare"
+            $compareButton.Size = New-Object System.Drawing.Size(150, 30)
+            $compareButton.Location = New-Object System.Drawing.Point(10, 60)
+            $comparisonSubTab.Controls.Add($compareButton)
 
-# Missing Groups textbox
-$missingGroupsTextbox = New-Object System.Windows.Forms.TextBox
-$missingGroupsTextbox.Multiline = $true
-$missingGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
-$missingGroupsTextbox.ScrollBars = "Vertical"
-$missingGroupsTextbox.Location = New-Object System.Drawing.Point(10, 380)
-$form.Controls.Add($missingGroupsTextbox)
+            # Current Groups label
+            $currentGroupsLabel = New-Object System.Windows.Forms.Label
+            $currentGroupsLabel.Text = "Current Groups:"
+            $currentGroupsLabel.AutoSize = $true
+            $currentGroupsLabel.Location = New-Object System.Drawing.Point(10, 100)
+            $comparisonSubTab.Controls.Add($currentGroupsLabel)
 
-# Reset button
-$resetButton = New-Object System.Windows.Forms.Button
-$resetButton.Text = "Reset"
-$resetButton.Size = New-Object System.Drawing.Size(80, 30)
-$resetButton.Location = New-Object System.Drawing.Point(300, 500) # Adjust as needed for proper placement
-$form.Controls.Add($resetButton)
+            # Current Groups textbox
+            $currentGroupsTextbox = New-Object System.Windows.Forms.TextBox
+            $currentGroupsTextbox.Multiline = $true
+            $currentGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
+            $currentGroupsTextbox.ScrollBars = "Vertical"
+            $currentGroupsTextbox.Location = New-Object System.Drawing.Point(10, 120)
+            $comparisonSubTab.Controls.Add($currentGroupsTextbox)
+            Enable-CtrlA -textbox $currentGroupsTextbox
 
-## Button Interactions --------------------------------------------------------------------------------------------
+            # Comparison Groups label
+            $label = New-Object System.Windows.Forms.Label
+            $label.Text = "Comparison Groups:"
+            $label.AutoSize = $true
+            $label.Location = New-Object System.Drawing.Point(10, 230)
+            $comparisonSubTab.Controls.Add($label)
 
-#Compare Groups Button click
-$button.Add_Click({
+            # Comparison Groups textbox
+            $textbox = New-Object System.Windows.Forms.TextBox
+            $textbox.Multiline = $true
+            $textbox.Size = New-Object System.Drawing.Size(360, 100)
+            $textbox.ScrollBars = "Vertical"
+            $textbox.Location = New-Object System.Drawing.Point(10, 250)
+            $comparisonSubTab.Controls.Add($textbox)
+            Enable-CtrlA -textbox $textbox
+
+            # Missing Groups label
+            $missingGroupsLabel = New-Object System.Windows.Forms.Label
+            $missingGroupsLabel.Text = "Missing Groups:"
+            $missingGroupsLabel.AutoSize = $true
+            $missingGroupsLabel.Location = New-Object System.Drawing.Point(10, 360)
+            $comparisonSubTab.Controls.Add($missingGroupsLabel)
+
+            # Missing Groups textbox
+            $missingGroupsTextbox = New-Object System.Windows.Forms.TextBox
+            $missingGroupsTextbox.Multiline = $true
+            $missingGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
+            $missingGroupsTextbox.ScrollBars = "Vertical"
+            $missingGroupsTextbox.Location = New-Object System.Drawing.Point(10, 380)
+            $comparisonSubTab.Controls.Add($missingGroupsTextbox)
+            Enable-CtrlA -textbox $missingGroupsTextbox
+
+            # Reset button
+            $resetButton = New-Object System.Windows.Forms.Button
+            $resetButton.Text = "Reset"
+            $resetButton.Size = New-Object System.Drawing.Size(80, 30)
+            $resetButton.Location = New-Object System.Drawing.Point(300, 500)
+            $comparisonSubTab.Controls.Add($resetButton)
+
+    # Computer Tab
+    $computerTab = New-Object System.Windows.Forms.TabPage
+    $computerTab.Text = "Computer"
+    $mainTabControl.TabPages.Add($computerTab)
+
+## Button Interactions ====================================================================================
+
+# Comparison Button click
+$compareButton.Add_Click({
     Reset-GroupFields
     Reset-LocalGroupCache
-    Gather-UserValue
+    Retrieve-User
 
     try {
         # Attempt to retrieve domain controllers
         $domainControllers = Get-ADDomainController -Filter * -ErrorAction Stop
+        Write-Host "Domain Controllers retrieved: $($domainControllers.Count)"
 
         if (-not $domainControllers) {
             [System.Windows.Forms.MessageBox]::Show("No domain controllers found.", "Error")
@@ -315,16 +286,10 @@ $button.Add_Click({
 $userTextbox.Add_KeyDown({
     param($sender, $e)
     if ($e.KeyCode -eq [System.Windows.Forms.Keys]::Enter) {
-        $button.PerformClick()
+        $compareButton.PerformClick()
         $e.SuppressKeyPress = $true
     }
 })
-
-# Apply Ctrl+A to textboxes
-Enable-CtrlA -textbox $userTextbox
-Enable-CtrlA -textbox $currentGroupsTextbox
-Enable-CtrlA -textbox $textbox
-Enable-CtrlA -textbox $missingGroupsTextbox
 
 # Reset button click event
 $resetButton.Add_Click({
