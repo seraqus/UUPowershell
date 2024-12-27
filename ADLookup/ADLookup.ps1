@@ -1,4 +1,4 @@
-﻿Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Windows.Forms
 
 # Function to check and install Active Directory module
 function Ensure-ActiveDirectoryModule {
