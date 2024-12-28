@@ -69,7 +69,8 @@ Ensure-ActiveDirectoryModule
 # Main Window
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "ADLookup"
-$form.Size = New-Object System.Drawing.Size(400, 600)
+$form.Size = New-Object System.Drawing.Size(400, 580)
+$form.MinimumSize = New-Object System.Drawing.Size(400, 580)
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::Sizable
 
 # Main Tab Control
@@ -97,6 +98,15 @@ $form.Controls.Add($mainTabControl)
         $comparisonSubTab.Text = "Comparison"
         $userSubTabControl.TabPages.Add($comparisonSubTab)
 
+            # Compare button
+            $compareButton = New-Object System.Windows.Forms.Button
+            $compareButton.Text = "Compare"
+            $compareButton.Size = New-Object System.Drawing.Size(150, 30)
+            $compareButton.Location = New-Object System.Drawing.Point(40, 25)
+            $compareButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+            $comparisonSubTab.Controls.Add($compareButton)
+
+
             # Username/Name label
             $userLabel = New-Object System.Windows.Forms.Label
             $userLabel.Text = "Enter Username/First and Last Name:"
@@ -106,33 +116,25 @@ $form.Controls.Add($mainTabControl)
 
             # Username/Name textbox
             $userTextbox = New-Object System.Windows.Forms.TextBox
-            $userTextbox.Size = New-Object System.Drawing.Size(360, 20)
+            $userTextbox.Size = New-Object System.Drawing.Size(18, 20)
             $userTextbox.Location = New-Object System.Drawing.Point(10, 30)
             $userTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
             $comparisonSubTab.Controls.Add($userTextbox)
             Enable-CtrlA -textbox $userTextbox
 
-            # Compare button
-            $compareButton = New-Object System.Windows.Forms.Button
-            $compareButton.Text = "Compare"
-            $compareButton.Size = New-Object System.Drawing.Size(150, 30)
-            $compareButton.Location = New-Object System.Drawing.Point(10, 60)
-            $compareButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left
-            $comparisonSubTab.Controls.Add($compareButton)
-
             # Current Groups label
             $currentGroupsLabel = New-Object System.Windows.Forms.Label
             $currentGroupsLabel.Text = "Current Groups:"
             $currentGroupsLabel.AutoSize = $true
-            $currentGroupsLabel.Location = New-Object System.Drawing.Point(10, 100)
+            $currentGroupsLabel.Location = New-Object System.Drawing.Point(10, 60)
             $comparisonSubTab.Controls.Add($currentGroupsLabel)
 
             # Current Groups textbox
             $currentGroupsTextbox = New-Object System.Windows.Forms.TextBox
             $currentGroupsTextbox.Multiline = $true
-            $currentGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
+            $currentGroupsTextbox.Size = New-Object System.Drawing.Size(180, 100)
             $currentGroupsTextbox.ScrollBars = "Vertical"
-            $currentGroupsTextbox.Location = New-Object System.Drawing.Point(10, 120)
+            $currentGroupsTextbox.Location = New-Object System.Drawing.Point(10, 80)
             $currentGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
             $comparisonSubTab.Controls.Add($currentGroupsTextbox)
             Enable-CtrlA -textbox $currentGroupsTextbox
@@ -141,15 +143,15 @@ $form.Controls.Add($mainTabControl)
             $label = New-Object System.Windows.Forms.Label
             $label.Text = "Comparison Groups:"
             $label.AutoSize = $true
-            $label.Location = New-Object System.Drawing.Point(10, 230)
+            $label.Location = New-Object System.Drawing.Point(10, 190)
             $comparisonSubTab.Controls.Add($label)
 
             # Comparison Groups textbox
             $compareGroupsTextbox = New-Object System.Windows.Forms.TextBox
             $compareGroupsTextbox.Multiline = $true
-            $compareGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
+            $compareGroupsTextbox.Size = New-Object System.Drawing.Size(180, 100)
             $compareGroupsTextbox.ScrollBars = "Vertical"
-            $compareGroupsTextbox.Location = New-Object System.Drawing.Point(10, 250)
+            $compareGroupsTextbox.Location = New-Object System.Drawing.Point(10, 210)
             $compareGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
             $comparisonSubTab.Controls.Add($compareGroupsTextbox)
             Enable-CtrlA -textbox $compareGroupsTextbox
@@ -158,16 +160,16 @@ $form.Controls.Add($mainTabControl)
             $missingGroupsLabel = New-Object System.Windows.Forms.Label
             $missingGroupsLabel.Text = "Missing Groups:"
             $missingGroupsLabel.AutoSize = $true
-            $missingGroupsLabel.Location = New-Object System.Drawing.Point(10, 360)
+            $missingGroupsLabel.Location = New-Object System.Drawing.Point(10, 320)
             $comparisonSubTab.Controls.Add($missingGroupsLabel)
 
             # Missing Groups textbox
             $missingGroupsTextbox = New-Object System.Windows.Forms.TextBox
             $missingGroupsTextbox.Multiline = $true
-            $missingGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100)
+            $missingGroupsTextbox.Size = New-Object System.Drawing.Size(180, 100)
             $missingGroupsTextbox.ScrollBars = "Vertical"
-            $missingGroupsTextbox.Location = New-Object System.Drawing.Point(10, 380)
-            $missingGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right -bor [System.Windows.Forms.AnchorStyles]::Bottom
+            $missingGroupsTextbox.Location = New-Object System.Drawing.Point(10, 340)
+            $missingGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
             $comparisonSubTab.Controls.Add($missingGroupsTextbox)
             Enable-CtrlA -textbox $missingGroupsTextbox
 
@@ -175,8 +177,7 @@ $form.Controls.Add($mainTabControl)
             $resetButton = New-Object System.Windows.Forms.Button
             $resetButton.Text = "Reset"
             $resetButton.Size = New-Object System.Drawing.Size(80, 30)
-            $resetButton.Location = New-Object System.Drawing.Point(300, 500)
-            $resetButton.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Right
+            $resetButton.Location = New-Object System.Drawing.Point(300, 450)
             $comparisonSubTab.Controls.Add($resetButton)
 
     # Computer Tab
