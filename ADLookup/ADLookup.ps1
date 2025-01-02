@@ -61,6 +61,10 @@ function Reset-LocalGroupCache {
     Write-Host "User group cache cleared."    
 }
 
+# Funtion to Copy group of corresponding button
+function Copy-TextFromTextbox {  
+}
+
 ## Main Program construction ====================================================================================
 
 # Start-up Functions
@@ -92,6 +96,20 @@ $form.Controls.Add($mainTabControl)
         $userInfoSubTab = New-Object System.Windows.Forms.TabPage
         $userInfoSubTab.Text = "Info"
         $userSubTabControl.TabPages.Add($userInfoSubTab)
+
+            # Username/Name label
+            $userLabel = New-Object System.Windows.Forms.Label
+            $userLabel.Text = "Enter Username/First and Last Name:"
+            $userLabel.AutoSize = $true
+            $userLabel.Location = New-Object System.Drawing.Point(10, 10)
+            $userInfoSubTab.Controls.Add($userLabel)
+
+            # Username/Name textbox
+            $userTextbox = New-Object System.Windows.Forms.TextBox
+            $userTextbox.Size = New-Object System.Drawing.Size(18, 20)
+            $userTextbox.Location = New-Object System.Drawing.Point(10, 30)
+            $userTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
+            $userInfoSubTab.Controls.Add($userTextbox)
 
         # Comparison Sub Tab
         $comparisonSubTab = New-Object System.Windows.Forms.TabPage
@@ -177,8 +195,17 @@ $form.Controls.Add($mainTabControl)
             $resetButton = New-Object System.Windows.Forms.Button
             $resetButton.Text = "Reset"
             $resetButton.Size = New-Object System.Drawing.Size(80, 30)
-            $resetButton.Location = New-Object System.Drawing.Point(300, 450)
+            $resetButton.Location = New-Object System.Drawing.Point(105, 60)
+            $resetButton.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Right
             $comparisonSubTab.Controls.Add($resetButton)
+
+            # Copy Missing Groups button
+            $missingGroupsButton = New-Object System.Windows.Forms.Button
+            $missingGroupsButton.Text = "Copy Groups"
+            $missingGroupsButton.Size = New-Object System.Drawing.Size(80, 30)
+            $missingGroupsButton.Location = New-Object System.Drawing.Point(10, 60)
+            $missingGroupsButton.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Right
+            $comparisonSubTab.Controls.Add($missingGroupsButton)
 
     # Computer Tab
     $computerTab = New-Object System.Windows.Forms.TabPage
@@ -290,6 +317,11 @@ $userTextbox.Add_KeyDown({
 # Reset button click event
 $resetButton.Add_Click({
     Reset-TextFields
+})
+
+# Copy missing groups button click
+$missingGroupsButton.Add_Click({
+    Copy-TextFromTextbox -sender $missingGroupsButton
 })
 
 # Run the form
