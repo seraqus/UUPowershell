@@ -250,11 +250,7 @@ $form.Controls.Add($mainTabControl)
             $compareButton.Add_Click({
                 Reset-GroupFields
                 Reset-LocalGroupCache
-                if (Get-UserSearch -textbox $userTextboxGroups) {
-                    Write-Host "Searching for user: $global:userValue"
-                    # Add your search logic here using $global:userValue
-                }
-                #Get-DomainControllers
+                Get-UserSearch -textbox $userTextboxGroups
             })
 
             # Missing Groups label
