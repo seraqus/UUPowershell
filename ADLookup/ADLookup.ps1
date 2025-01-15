@@ -3,6 +3,7 @@ Add-Type -AssemblyName System.Windows.Forms
 ## Variables ====================================================================================
 
 $global:userValue = $null
+$global:domainControllers = $null
 
 ## Functions ====================================================================================
 
@@ -37,12 +38,6 @@ function Reset-GroupFields {
     Write-Host "All group fields reset."
 }
 
-# Function to gather user text field info and trim into a global variable
-function Retrieve-User {
-    $global:userValue = $userTextbox.Text.Trim()
-    Write-Host "Selected user: $global:userValue"
-}
-
 # Function to enable Ctrl+A
 function Enable-CtrlA {
     param($textbox)
@@ -61,8 +56,34 @@ function Reset-LocalGroupCache {
     Write-Host "User group cache cleared."    
 }
 
-# Funtion to Copy group of corresponding button
-function Copy-TextFromTextbox {  
+#Functions to query all domain controllers
+function Get-DomainControllers {
+    if ($global:domainControllers -eq $null) {
+        $global:domainControllers = Get-ADDomainController -Filter *
+        foreach ($dc in $global:domainControllers) {
+            Write-Host "Domain Controller found: $($dc.Name)"
+        }
+        return $global:domainControllers
+    } else {
+        Write-Host "Domain controllers are already loaded."
+    }
+}
+
+# Function to gather user text field info and trim into a global variable
+function Retrieve-UserSearch {
+    param (
+        [Parameter(Mandatory=$true)]
+        [System.Windows.Forms.TextBox]$textbox
+    )
+    if ([string]::IsNullOrEmpty($textbox.Text)) {
+        [System.Windows.Forms.MessageBox]::Show("No user value entered.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        Write-Host "No user info provided."
+        return $null
+    } else {
+        $global:userValue = $userTextbox.Text.Trim()
+        Write-Host "Search value entered: $($userTextbox.Text)"
+        return $true
+    }
 }
 
 ## Main Program construction ====================================================================================
@@ -73,8 +94,8 @@ Ensure-ActiveDirectoryModule
 # Main Window
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "ADLookup"
-$form.Size = New-Object System.Drawing.Size(400, 580)
-$form.MinimumSize = New-Object System.Drawing.Size(400, 580)
+$form.Size = New-Object System.Drawing.Size(375, 580)
+$form.MinimumSize = New-Object System.Drawing.Size(375, 580)
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::Sizable
 
 # Main Tab Control
@@ -98,114 +119,162 @@ $form.Controls.Add($mainTabControl)
         $userSubTabControl.TabPages.Add($userInfoSubTab)
 
             # Username/Name label
-            $userLabel = New-Object System.Windows.Forms.Label
-            $userLabel.Text = "Enter Username/First and Last Name:"
-            $userLabel.AutoSize = $true
-            $userLabel.Location = New-Object System.Drawing.Point(10, 10)
-            $userInfoSubTab.Controls.Add($userLabel)
+            $userLabelInfo = New-Object System.Windows.Forms.Label
+            $userLabelInfo.Text = "Enter Username/First or Last Name:"
+            $userLabelInfo.AutoSize = $true
+            $userLabelInfo.Location = New-Object System.Drawing.Point(5, 5)
+            $userInfoSubTab.Controls.Add($userLabelInfo)
 
             # Username/Name textbox
-            $userTextbox = New-Object System.Windows.Forms.TextBox
-            $userTextbox.Size = New-Object System.Drawing.Size(18, 20)
-            $userTextbox.Location = New-Object System.Drawing.Point(10, 30)
-            $userTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
-            $userInfoSubTab.Controls.Add($userTextbox)
+            $userTextboxInfo = New-Object System.Windows.Forms.TextBox
+            $userTextboxInfo.Size = New-Object System.Drawing.Size(18, 20)
+            $userTextboxInfo.Location = New-Object System.Drawing.Point(5, 25)
+            $userTextboxInfo.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
+            $userInfoSubTab.Controls.Add($userTextboxInfo)
+            Enable-CtrlA -textbox $userTextboxInfo
 
-        # Comparison Sub Tab
-        $comparisonSubTab = New-Object System.Windows.Forms.TabPage
-        $comparisonSubTab.Text = "Comparison"
-        $userSubTabControl.TabPages.Add($comparisonSubTab)
+            # Search button
+            $searchButtonInfo = New-Object System.Windows.Forms.Button
+            $searchButtonInfo.Text = "Search"
+            $searchButtonInfo.Size = New-Object System.Drawing.Size(50, 20)
+            $searchButtonInfo.Location = New-Object System.Drawing.Point(30, 25)
+            $searchButtonInfo.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+            $userInfoSubTab.Controls.Add($searchButtonInfo)
 
-            # Compare button
-            $compareButton = New-Object System.Windows.Forms.Button
-            $compareButton.Text = "Compare"
-            $compareButton.Size = New-Object System.Drawing.Size(150, 30)
-            $compareButton.Location = New-Object System.Drawing.Point(40, 25)
-            $compareButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
-            $comparisonSubTab.Controls.Add($compareButton)
+            # Reset button
+            $resetButtonInfo = New-Object System.Windows.Forms.Button
+            $resetButtonInfo.Text = "Reset"
+            $resetButtonInfo.Size = New-Object System.Drawing.Size(45, 20)
+            $resetButtonInfo.Location = New-Object System.Drawing.Point(85, 25)
+            $resetButtonInfo.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+            $userInfoSubTab.Controls.Add($resetButtonInfo)
 
+        # AD Groups Sub Tab
+        $adGroupsSubTab = New-Object System.Windows.Forms.TabPage
+        $adGroupsSubTab.Text = "AD Groups"
+        $userSubTabControl.TabPages.Add($adGroupsSubTab)
 
             # Username/Name label
-            $userLabel = New-Object System.Windows.Forms.Label
-            $userLabel.Text = "Enter Username/First and Last Name:"
-            $userLabel.AutoSize = $true
-            $userLabel.Location = New-Object System.Drawing.Point(10, 10)
-            $comparisonSubTab.Controls.Add($userLabel)
+            $userLabelGroups = New-Object System.Windows.Forms.Label
+            $userLabelGroups.Text = "Enter Username/First or Last Name:"
+            $userLabelGroups.AutoSize = $true
+            $userLabelGroups.Location = New-Object System.Drawing.Point(5, 5)
+            $adGroupsSubTab.Controls.Add($userLabelGroups)
 
             # Username/Name textbox
-            $userTextbox = New-Object System.Windows.Forms.TextBox
-            $userTextbox.Size = New-Object System.Drawing.Size(18, 20)
-            $userTextbox.Location = New-Object System.Drawing.Point(10, 30)
-            $userTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
-            $comparisonSubTab.Controls.Add($userTextbox)
-            Enable-CtrlA -textbox $userTextbox
+            $userTextboxGroups = New-Object System.Windows.Forms.TextBox
+            $userTextboxGroups.Size = New-Object System.Drawing.Size(75, 20)
+            $userTextboxGroups.Location = New-Object System.Drawing.Point(5, 25)
+            $userTextboxGroups.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
+            $adGroupsSubTab.Controls.Add($userTextboxGroups)
+            Enable-CtrlA -textbox $userTextboxGroups
+
+            # Search button
+            $searchButtonGroups = New-Object System.Windows.Forms.Button
+            $searchButtonGroups.Text = "Search"
+            $searchButtonGroups.Size = New-Object System.Drawing.Size(50, 20)
+            $searchButtonGroups.Location = New-Object System.Drawing.Point(85, 25)
+            $searchButtonGroups.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+            $adGroupsSubTab.Controls.Add($searchButtonGroups)
+
+            # Reset button
+            $resetButtonGroups = New-Object System.Windows.Forms.Button
+            $resetButtonGroups.Text = "Reset"
+            $resetButtonGroups.Size = New-Object System.Drawing.Size(45, 20)
+            $resetButtonGroups.Location = New-Object System.Drawing.Point(140, 25)
+            $resetButtonGroups.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+            $adGroupsSubTab.Controls.Add($resetButtonGroups)
 
             # Current Groups label
             $currentGroupsLabel = New-Object System.Windows.Forms.Label
             $currentGroupsLabel.Text = "Current Groups:"
             $currentGroupsLabel.AutoSize = $true
-            $currentGroupsLabel.Location = New-Object System.Drawing.Point(10, 60)
-            $comparisonSubTab.Controls.Add($currentGroupsLabel)
+            $currentGroupsLabel.Location = New-Object System.Drawing.Point(5, 50)
+            $adGroupsSubTab.Controls.Add($currentGroupsLabel)
 
             # Current Groups textbox
             $currentGroupsTextbox = New-Object System.Windows.Forms.TextBox
             $currentGroupsTextbox.Multiline = $true
-            $currentGroupsTextbox.Size = New-Object System.Drawing.Size(180, 100)
+            $currentGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100) ######################################### Fix this
             $currentGroupsTextbox.ScrollBars = "Vertical"
-            $currentGroupsTextbox.Location = New-Object System.Drawing.Point(10, 80)
+            $currentGroupsTextbox.Location = New-Object System.Drawing.Point(5, 70)
             $currentGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
-            $comparisonSubTab.Controls.Add($currentGroupsTextbox)
+            $adGroupsSubTab.Controls.Add($currentGroupsTextbox)
             Enable-CtrlA -textbox $currentGroupsTextbox
+
+            # Copy Current Groups button
+            $currentGroupsButton = New-Object System.Windows.Forms.Button
+            $currentGroupsButton.Text = "Copy Groups"
+            $currentGroupsButton.Size = New-Object System.Drawing.Size(80, 20)
+            $currentGroupsButton.Location = New-Object System.Drawing.Point(105, 47.5)
+            $currentGroupsButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+            $adGroupsSubTab.Controls.Add($currentGroupsButton)
+            $currentGroupsButton.Add_Click({
+                $copiedText = $currentGroupsTextbox.Text
+                Set-Clipboard -Value $copiedText
+                Write-Host "Text copied: $copiedText"
+            })
 
             # Comparison Groups label
             $label = New-Object System.Windows.Forms.Label
-            $label.Text = "Comparison Groups:"
+            $label.Text = "Comparison Groups/User:"
             $label.AutoSize = $true
-            $label.Location = New-Object System.Drawing.Point(10, 190)
-            $comparisonSubTab.Controls.Add($label)
+            $label.Location = New-Object System.Drawing.Point(5, 175)
+            $adGroupsSubTab.Controls.Add($label)
 
             # Comparison Groups textbox
             $compareGroupsTextbox = New-Object System.Windows.Forms.TextBox
             $compareGroupsTextbox.Multiline = $true
             $compareGroupsTextbox.Size = New-Object System.Drawing.Size(180, 100)
             $compareGroupsTextbox.ScrollBars = "Vertical"
-            $compareGroupsTextbox.Location = New-Object System.Drawing.Point(10, 210)
+            $compareGroupsTextbox.Location = New-Object System.Drawing.Point(5, 195)
             $compareGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
-            $comparisonSubTab.Controls.Add($compareGroupsTextbox)
+            $adGroupsSubTab.Controls.Add($compareGroupsTextbox)
             Enable-CtrlA -textbox $compareGroupsTextbox
+
+            # Compare button
+            $compareButton = New-Object System.Windows.Forms.Button
+            $compareButton.Text = "Compare"
+            $compareButton.Size = New-Object System.Drawing.Size(60, 20)
+            $compareButton.Location = New-Object System.Drawing.Point(125, 172.5)
+            $compareButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+            $adGroupsSubTab.Controls.Add($compareButton)
+            $compareButton.Add_Click({
+                Reset-GroupFields
+                Reset-LocalGroupCache
+                Retrieve-UserSearch -textbox $userTextbox
+                Get-DomainControllers
+            })
 
             # Missing Groups label
             $missingGroupsLabel = New-Object System.Windows.Forms.Label
             $missingGroupsLabel.Text = "Missing Groups:"
             $missingGroupsLabel.AutoSize = $true
-            $missingGroupsLabel.Location = New-Object System.Drawing.Point(10, 320)
-            $comparisonSubTab.Controls.Add($missingGroupsLabel)
+            $missingGroupsLabel.Location = New-Object System.Drawing.Point(5, 300)
+            $adGroupsSubTab.Controls.Add($missingGroupsLabel)
 
             # Missing Groups textbox
             $missingGroupsTextbox = New-Object System.Windows.Forms.TextBox
             $missingGroupsTextbox.Multiline = $true
             $missingGroupsTextbox.Size = New-Object System.Drawing.Size(180, 100)
             $missingGroupsTextbox.ScrollBars = "Vertical"
-            $missingGroupsTextbox.Location = New-Object System.Drawing.Point(10, 340)
+            $missingGroupsTextbox.Location = New-Object System.Drawing.Point(5, 320)
             $missingGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
-            $comparisonSubTab.Controls.Add($missingGroupsTextbox)
+            $adGroupsSubTab.Controls.Add($missingGroupsTextbox)
             Enable-CtrlA -textbox $missingGroupsTextbox
-
-            # Reset button
-            $resetButton = New-Object System.Windows.Forms.Button
-            $resetButton.Text = "Reset"
-            $resetButton.Size = New-Object System.Drawing.Size(80, 30)
-            $resetButton.Location = New-Object System.Drawing.Point(105, 60)
-            $resetButton.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Right
-            $comparisonSubTab.Controls.Add($resetButton)
 
             # Copy Missing Groups button
             $missingGroupsButton = New-Object System.Windows.Forms.Button
             $missingGroupsButton.Text = "Copy Groups"
-            $missingGroupsButton.Size = New-Object System.Drawing.Size(80, 30)
-            $missingGroupsButton.Location = New-Object System.Drawing.Point(10, 60)
-            $missingGroupsButton.Anchor = [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Right
-            $comparisonSubTab.Controls.Add($missingGroupsButton)
+            $missingGroupsButton.Size = New-Object System.Drawing.Size(80, 20)
+            $missingGroupsButton.Location = New-Object System.Drawing.Point(105, 297.5)
+            $missingGroupsButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+            $adGroupsSubTab.Controls.Add($missingGroupsButton)
+            $missingGroupsButton.Add_Click({
+                $copiedText = $missingGroupsTextbox.Text
+                Set-Clipboard -Value $copiedText
+                Write-Host "Text copied: $copiedText"
+            })
 
     # Computer Tab
     $computerTab = New-Object System.Windows.Forms.TabPage
@@ -214,99 +283,8 @@ $form.Controls.Add($mainTabControl)
 
 ## Button Interactions ====================================================================================
 
-# Comparison Button click
-$compareButton.Add_Click({
-    Reset-GroupFields
-    Reset-LocalGroupCache
-    Retrieve-User
-
-    try {
-        $domainControllers = Get-ADDomainController -Filter * -ErrorAction Stop
-        Write-Host "Domain Controllers retrieved: $($domainControllers.Count)"
-
-        if (-not $domainControllers) {
-            [System.Windows.Forms.MessageBox]::Show("No domain controllers found.", "Error")
-            return
-        }
-
-        $latestUserData = $null
-        $latestTimestamp = [datetime]::MinValue
-        $mostRecentDC = $null
-
-        foreach ($dc in $domainControllers) {
-            try {
-                Write-Host "Querying Domain Controller: $($dc.HostName)"
-
-                $currentUserData = if ($global:userValue -notmatch '\s') {
-                    Get-ADUser -Filter "SamAccountName -eq '$global:userValue'" -Server $dc.HostName -Properties MemberOf, WhenChanged
-                } else {
-                    $parts = $global:userValue -split '\s+', 2
-                    if ($parts.Count -eq 2) {
-                        $firstName = $parts[0]
-                        $lastName = $parts[1]
-                        Get-ADUser -Filter "GivenName -eq '$firstName' -and Surname -eq '$lastName'" -Server $dc.HostName -Properties MemberOf, WhenChanged
-                    } else {
-                        throw "Please enter a valid username or both first and last names."
-                    }
-                }
-
-                if ($currentUserData -and $currentUserData.WhenChanged -gt $latestTimestamp) {
-                    $latestTimestamp = $currentUserData.WhenChanged
-                    $latestUserData = $currentUserData
-                    $mostRecentDC = $dc.HostName
-                }
-            } catch {
-                Write-Host "Error querying domain controller $($dc.HostName): $_"
-                continue
-            }
-        }
-
-        if ($mostRecentDC) {
-            Write-Host "Domain Controller with most up-to-date info: $mostRecentDC at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-        } else {
-            Write-Host "No domain controller provided updated user information."
-        }
-
-        if (-not $latestUserData) {
-            [System.Windows.Forms.MessageBox]::Show("User not found.", "Error")
-            return
-        }
-
-        $userGroups = if ($global:userValue -notmatch '\s') {
-            (Get-ADUser -Filter "SamAccountName -eq '$global:userValue'" -Server $mostRecentDC -Properties MemberOf).MemberOf
-        } else {
-            $parts = $global:userValue -split '\s+', 2
-            if ($parts.Count -eq 2) {
-                $firstName = $parts[0]
-                $lastName = $parts[1]
-                (Get-ADUser -Filter "GivenName -eq '$firstName' -and Surname -eq '$lastName'" -Server $mostRecentDC -Properties MemberOf).MemberOf
-            } else {
-                throw "Please enter a valid username or both first and last names."
-            }
-        }
-
-        if ($userGroups -and $userGroups.Count -gt 0) {
-            $userGroups = $userGroups | Where-Object { $_ -ne $null } | ForEach-Object {
-                (Get-ADGroup -Identity $_ -Server $mostRecentDC).Name
-            } | Sort-Object
-        } else {
-            throw "No groups found for the user."
-        }
-
-        $currentGroupsTextbox.Text = $userGroups -join "`r`n"
-
-        $desiredGroups = $compareGroupsTextbox.Text -split "`r`n"
-        $missingGroups = $desiredGroups | Where-Object { $_ -notin $userGroups } | Sort-Object
-        $missingGroupsTextbox.Text = $missingGroups -join "`r`n"
-    } catch {
-        $errorMessage = $_.Exception.Message
-        Write-Host "Error querying Active Directory: $errorMessage"
-        [System.Windows.Forms.MessageBox]::Show("Error querying Active Directory: $errorMessage", "Error")
-    }
-})
-
 # Handle Enter key for username textbox only
-$userTextbox.Add_KeyDown({
+$userTextboxInfo.Add_KeyDown({
     param($sender, $e)
     if ($e.KeyCode -eq [System.Windows.Forms.Keys]::Enter) {
         $compareButton.PerformClick()
@@ -315,14 +293,11 @@ $userTextbox.Add_KeyDown({
 })
 
 # Reset button click event
-$resetButton.Add_Click({
+$resetButtonInfo.Add_Click({
     Reset-TextFields
 })
 
-# Copy missing groups button click
-$missingGroupsButton.Add_Click({
-    Copy-TextFromTextbox -sender $missingGroupsButton
-})
+
 
 # Run the form
 [void] $form.ShowDialog()
