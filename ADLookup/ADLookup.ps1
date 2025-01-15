@@ -8,7 +8,7 @@ $global:domainControllers = $null
 ## Functions ====================================================================================
 
 # Function to check and install Active Directory module
-function Ensure-ActiveDirectoryModule {
+function Test-ActiveDirectoryModule {
     if (Get-Module -ListAvailable -Name ActiveDirectory) {
         Import-Module ActiveDirectory -ErrorAction Stop
     } else {
@@ -43,7 +43,7 @@ function Reset-GroupFields {
 function Enable-CtrlA {
     param($textbox)
     $textbox.Add_KeyDown({
-        param($sender, $e)
+        param($src, $e)
         if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::A) {
             $sender.SelectAll()
             $e.SuppressKeyPress = $true
@@ -59,7 +59,7 @@ function Reset-LocalGroupCache {
 
 #Functions to query all domain controllers
 function Get-DomainControllers {
-    if ($global:domainControllers -eq $null) {
+    if ($null -eq $global:domainControllers) {
         $global:domainControllers = Get-ADDomainController -Filter *
         foreach ($dc in $global:domainControllers) {
             Write-Host "Domain Controller found: $($dc.Name)"
@@ -81,7 +81,7 @@ function Get-UserSearch {
         Write-Host "No user info provided."
         return $null
     } else {
-        $userValue = $textbox.Text.Trim()
+        $global:userValue = $textbox.Text.Trim()
         Write-Host "Search value entered: $($textbox.Text)"
         return $true
     }
@@ -90,7 +90,8 @@ function Get-UserSearch {
 ## Main Program construction ====================================================================================
 
 # Start-up Functions
-Ensure-ActiveDirectoryModule
+Test-ActiveDirectoryModule
+Get-DomainControllers
 
 # Main Window
 $form = New-Object System.Windows.Forms.Form
@@ -249,7 +250,10 @@ $form.Controls.Add($mainTabControl)
             $compareButton.Add_Click({
                 Reset-GroupFields
                 Reset-LocalGroupCache
-                Get-UserSearch -textbox $userTextboxGroups
+                if (Get-UserSearch -textbox $userTextboxGroups) {
+                    Write-Host "Searching for user: $global:userValue"
+                    # Add your search logic here using $global:userValue
+                }
                 #Get-DomainControllers
             })
 
@@ -292,7 +296,7 @@ $form.Controls.Add($mainTabControl)
 
 # Handle Enter key for username textbox only
 $userTextboxInfo.Add_KeyDown({
-    param($sender, $e)
+    param($src, $e)
     if ($e.KeyCode -eq [System.Windows.Forms.Keys]::Enter) {
         $compareButton.PerformClick()
         $e.SuppressKeyPress = $true
