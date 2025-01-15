@@ -87,6 +87,38 @@ function Get-UserSearch {
     }
 }
 
+# Function to use $global:userValue to search for user by username, first/last name, first & last name, or email
+function Search-User {
+    if ($null -eq $global:userValue) {
+        [System.Windows.Forms.MessageBox]::Show("No user value entered.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        Write-Host "No user info provided."
+        return $null
+    }
+
+    try {
+        $user = Get-ADUser -Filter {
+            (SamAccountName -eq $global:userValue) -or
+            (GivenName -eq $global:userValue) -or
+            (Surname -eq $global:userValue) -or
+            (Name -eq $global:userValue) -or
+            (EmailAddress -eq $global:userValue)
+        }
+
+        if ($null -eq $user) {
+            [System.Windows.Forms.MessageBox]::Show("User not found.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            Write-Host "User not found."
+            return $null
+        } else {
+            Write-Host "User found: $($user.SamAccountName)"
+            return $user
+        }
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show("Error searching for user: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        Write-Host "Error searching for user: $_"
+        return $null
+    }
+}
+
 ## Main Program construction ====================================================================================
 
 # Start-up Functions
