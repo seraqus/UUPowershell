@@ -13,12 +13,12 @@ function Ensure-ActiveDirectoryModule {
         Import-Module ActiveDirectory -ErrorAction Stop
     } else {
         [System.Windows.Forms.MessageBox]::Show(
-            "The Active Directory module is not available on this system. Please install RSAT from the DeploymentShare before continuing.",
+            "The Active Directory module is not available on this system. Please verify RSAT is installed before continuing.",
             "Module Missing",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
         )
-        exit
+        #exit
     }
 }
 
@@ -94,8 +94,8 @@ Ensure-ActiveDirectoryModule
 # Main Window
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "ADLookup"
-$form.Size = New-Object System.Drawing.Size(375, 580)
-$form.MinimumSize = New-Object System.Drawing.Size(375, 580)
+$form.Size = New-Object System.Drawing.Size(375, 515)
+$form.MinimumSize = New-Object System.Drawing.Size(375, 515)
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::Sizable
 
 # Main Tab Control
@@ -127,7 +127,7 @@ $form.Controls.Add($mainTabControl)
 
             # Username/Name textbox
             $userTextboxInfo = New-Object System.Windows.Forms.TextBox
-            $userTextboxInfo.Size = New-Object System.Drawing.Size(18, 20)
+            $userTextboxInfo.Size = New-Object System.Drawing.Size(85, 20)
             $userTextboxInfo.Location = New-Object System.Drawing.Point(5, 25)
             $userTextboxInfo.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
             $userInfoSubTab.Controls.Add($userTextboxInfo)
@@ -137,7 +137,7 @@ $form.Controls.Add($mainTabControl)
             $searchButtonInfo = New-Object System.Windows.Forms.Button
             $searchButtonInfo.Text = "Search"
             $searchButtonInfo.Size = New-Object System.Drawing.Size(50, 20)
-            $searchButtonInfo.Location = New-Object System.Drawing.Point(30, 25)
+            $searchButtonInfo.Location = New-Object System.Drawing.Point(95, 25)
             $searchButtonInfo.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
             $userInfoSubTab.Controls.Add($searchButtonInfo)
 
@@ -145,9 +145,12 @@ $form.Controls.Add($mainTabControl)
             $resetButtonInfo = New-Object System.Windows.Forms.Button
             $resetButtonInfo.Text = "Reset"
             $resetButtonInfo.Size = New-Object System.Drawing.Size(45, 20)
-            $resetButtonInfo.Location = New-Object System.Drawing.Point(85, 25)
+            $resetButtonInfo.Location = New-Object System.Drawing.Point(150, 25)
             $resetButtonInfo.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
             $userInfoSubTab.Controls.Add($resetButtonInfo)
+            $resetButtonInfo.Add_Click({
+                Reset-TextFields
+            })
 
         # AD Groups Sub Tab
         $adGroupsSubTab = New-Object System.Windows.Forms.TabPage
@@ -163,7 +166,7 @@ $form.Controls.Add($mainTabControl)
 
             # Username/Name textbox
             $userTextboxGroups = New-Object System.Windows.Forms.TextBox
-            $userTextboxGroups.Size = New-Object System.Drawing.Size(75, 20)
+            $userTextboxGroups.Size = New-Object System.Drawing.Size(85, 20)
             $userTextboxGroups.Location = New-Object System.Drawing.Point(5, 25)
             $userTextboxGroups.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
             $adGroupsSubTab.Controls.Add($userTextboxGroups)
@@ -173,7 +176,7 @@ $form.Controls.Add($mainTabControl)
             $searchButtonGroups = New-Object System.Windows.Forms.Button
             $searchButtonGroups.Text = "Search"
             $searchButtonGroups.Size = New-Object System.Drawing.Size(50, 20)
-            $searchButtonGroups.Location = New-Object System.Drawing.Point(85, 25)
+            $searchButtonGroups.Location = New-Object System.Drawing.Point(95, 25)
             $searchButtonGroups.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
             $adGroupsSubTab.Controls.Add($searchButtonGroups)
 
@@ -181,9 +184,12 @@ $form.Controls.Add($mainTabControl)
             $resetButtonGroups = New-Object System.Windows.Forms.Button
             $resetButtonGroups.Text = "Reset"
             $resetButtonGroups.Size = New-Object System.Drawing.Size(45, 20)
-            $resetButtonGroups.Location = New-Object System.Drawing.Point(140, 25)
+            $resetButtonGroups.Location = New-Object System.Drawing.Point(150, 25)
             $resetButtonGroups.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
             $adGroupsSubTab.Controls.Add($resetButtonGroups)
+            $resetButtonGroups.Add_Click({
+                Reset-TextFields
+            })
 
             # Current Groups label
             $currentGroupsLabel = New-Object System.Windows.Forms.Label
@@ -195,7 +201,7 @@ $form.Controls.Add($mainTabControl)
             # Current Groups textbox
             $currentGroupsTextbox = New-Object System.Windows.Forms.TextBox
             $currentGroupsTextbox.Multiline = $true
-            $currentGroupsTextbox.Size = New-Object System.Drawing.Size(360, 100) ######################################### Fix this
+            $currentGroupsTextbox.Size = New-Object System.Drawing.Size(190, 100)
             $currentGroupsTextbox.ScrollBars = "Vertical"
             $currentGroupsTextbox.Location = New-Object System.Drawing.Point(5, 70)
             $currentGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
@@ -206,7 +212,7 @@ $form.Controls.Add($mainTabControl)
             $currentGroupsButton = New-Object System.Windows.Forms.Button
             $currentGroupsButton.Text = "Copy Groups"
             $currentGroupsButton.Size = New-Object System.Drawing.Size(80, 20)
-            $currentGroupsButton.Location = New-Object System.Drawing.Point(105, 47.5)
+            $currentGroupsButton.Location = New-Object System.Drawing.Point(115, 47.5)
             $currentGroupsButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
             $adGroupsSubTab.Controls.Add($currentGroupsButton)
             $currentGroupsButton.Add_Click({
@@ -225,7 +231,7 @@ $form.Controls.Add($mainTabControl)
             # Comparison Groups textbox
             $compareGroupsTextbox = New-Object System.Windows.Forms.TextBox
             $compareGroupsTextbox.Multiline = $true
-            $compareGroupsTextbox.Size = New-Object System.Drawing.Size(180, 100)
+            $compareGroupsTextbox.Size = New-Object System.Drawing.Size(190, 100)
             $compareGroupsTextbox.ScrollBars = "Vertical"
             $compareGroupsTextbox.Location = New-Object System.Drawing.Point(5, 195)
             $compareGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
@@ -236,7 +242,7 @@ $form.Controls.Add($mainTabControl)
             $compareButton = New-Object System.Windows.Forms.Button
             $compareButton.Text = "Compare"
             $compareButton.Size = New-Object System.Drawing.Size(60, 20)
-            $compareButton.Location = New-Object System.Drawing.Point(125, 172.5)
+            $compareButton.Location = New-Object System.Drawing.Point(135, 172.5)
             $compareButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
             $adGroupsSubTab.Controls.Add($compareButton)
             $compareButton.Add_Click({
@@ -256,7 +262,7 @@ $form.Controls.Add($mainTabControl)
             # Missing Groups textbox
             $missingGroupsTextbox = New-Object System.Windows.Forms.TextBox
             $missingGroupsTextbox.Multiline = $true
-            $missingGroupsTextbox.Size = New-Object System.Drawing.Size(180, 100)
+            $missingGroupsTextbox.Size = New-Object System.Drawing.Size(190, 100)
             $missingGroupsTextbox.ScrollBars = "Vertical"
             $missingGroupsTextbox.Location = New-Object System.Drawing.Point(5, 320)
             $missingGroupsTextbox.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
@@ -267,7 +273,7 @@ $form.Controls.Add($mainTabControl)
             $missingGroupsButton = New-Object System.Windows.Forms.Button
             $missingGroupsButton.Text = "Copy Groups"
             $missingGroupsButton.Size = New-Object System.Drawing.Size(80, 20)
-            $missingGroupsButton.Location = New-Object System.Drawing.Point(105, 297.5)
+            $missingGroupsButton.Location = New-Object System.Drawing.Point(115, 297.5)
             $missingGroupsButton.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
             $adGroupsSubTab.Controls.Add($missingGroupsButton)
             $missingGroupsButton.Add_Click({
@@ -291,13 +297,6 @@ $userTextboxInfo.Add_KeyDown({
         $e.SuppressKeyPress = $true
     }
 })
-
-# Reset button click event
-$resetButtonInfo.Add_Click({
-    Reset-TextFields
-})
-
-
 
 # Run the form
 [void] $form.ShowDialog()
