@@ -24,7 +24,8 @@ function Ensure-ActiveDirectoryModule {
 
 # Function to reset all Text Fields
 function Reset-TextFields {
-    $userTextbox.Clear()
+    $userTextboxInfo.Clear()
+    $userTextboxGroups.Clear()
     $currentGroupsTextbox.Clear()
     $compareGroupsTextbox.Clear()
     $missingGroupsTextbox.Clear()
@@ -70,18 +71,18 @@ function Get-DomainControllers {
 }
 
 # Function to gather user text field info and trim into a global variable
-function Retrieve-UserSearch {
+function Get-UserSearch {
     param (
         [Parameter(Mandatory=$true)]
         [System.Windows.Forms.TextBox]$textbox
     )
-    if ([string]::IsNullOrEmpty($textbox.Text)) {
+    if ($null -eq $textbox.Text) {
         [System.Windows.Forms.MessageBox]::Show("No user value entered.", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         Write-Host "No user info provided."
         return $null
     } else {
-        $global:userValue = $userTextbox.Text.Trim()
-        Write-Host "Search value entered: $($userTextbox.Text)"
+        $userValue = $textbox.Text.Trim()
+        Write-Host "Search value entered: $($textbox.Text)"
         return $true
     }
 }
@@ -248,8 +249,8 @@ $form.Controls.Add($mainTabControl)
             $compareButton.Add_Click({
                 Reset-GroupFields
                 Reset-LocalGroupCache
-                Retrieve-UserSearch -textbox $userTextbox
-                Get-DomainControllers
+                Get-UserSearch -textbox $userTextboxGroups
+                #Get-DomainControllers
             })
 
             # Missing Groups label
