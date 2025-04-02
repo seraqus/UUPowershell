@@ -146,150 +146,92 @@ $searchButton.Add_Click({
     }
 })
 
+# Define a reusable function to create ServiceNow tasks
+function New-ServiceNowTask {
+    param (
+        [string]$ShortDescription,
+        [string]$Description,
+        [string]$AssignmentGroup = "SN-ITD-Service Center",
+        [string]$AssignedTo = $env:USERNAME,
+        [string]$State = "Open"
+    )
+
+    $taskDetails = @{
+        short_description = $ShortDescription
+        description = $Description
+        assignment_group = $AssignmentGroup
+        assigned_to = $AssignedTo
+        state = $State
+    }
+
+    try {
+        $task = New-ServiceNowRecord -Table "task" -Values $taskDetails
+        Write-Host "ServiceNow task created successfully. Task ID: $($task.sys_id)" -ForegroundColor Green
+    } catch {
+        Write-Host "Failed to create ServiceNow task. Error: $_" -ForegroundColor Red
+    }
+}
+
 # Define the submit button click event
 $submitButton.Add_Click({
+    # Collect input values
+    $userDetails = @{}
+    foreach ($key in $inputs.Keys) {
+        if ($inputs[$key] -is [System.Windows.Forms.ComboBox]) {
+            $userDetails[$key] = $inputs[$key].SelectedItem
+        } else {
+            $userDetails[$key] = $inputs[$key].Text
+        }
+    }
+
+    # Validate inputs
+    if ($userDetails.Values -contains "") {
+        Write-Host "All fields are required. Please fill out the form completely." -ForegroundColor Red
+        return
+    }
+
+    # ServiceNow Integration
+    if (-not (Get-Module -Name ServiceNow -ListAvailable)) {
+        Write-Host "ServiceNow module is not installed. Please install it to proceed." -ForegroundColor Red
+        return
+    }
+
+    $ServiceNowInstance = $config["ServiceNowInstance"]
+    try {
+        Connect-ServiceNow -Instance $ServiceNowInstance -UseSSO | Out-Null
+        Write-Host "Connected to ServiceNow successfully using SSO." -ForegroundColor Green
+    } catch {
+        Write-Host "Failed to connect to ServiceNow using SSO. Please ensure your SSO configuration is correct." -ForegroundColor Red
+        return
+    }
+
+    # Create ServiceNow tasks
+    $ticketNumber = $userDetails["Ticket Number"]
+    $terminationDate = $userDetails["Date of Termination (MM/DD/YYYY)"]
+    $disabledOU = $config["Disabled Accounts location"]
+
+    New-ServiceNowTask -ShortDescription "SERVICE CENTER: $ticketNumber--TERM, Please disable AD account for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) and move it to $disabledOU, $terminationDate" `
+                          -Description "SERVICE CENTER: $ticketNumber--TERM, Please disable AD account for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) and move it to $disabledOU, $terminationDate"
+
+    New-ServiceNowTask -ShortDescription "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) from Alert Sense, $terminationDate" `
+                          -Description "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) from Alert Sense, $terminationDate" `
+                          -AssignedTo "Arthur Mora"
+
+    New-ServiceNowTask -ShortDescription "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) as a local administrator, $terminationDate" `
+                          -Description "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) as a local administrator, $terminationDate"
+
+    New-ServiceNowTask -ShortDescription "SERVICE CENTER: $ticketNumber--TERM, Please remove desk phone and update phone directories for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate" `
+                          -Description "SERVICE CENTER: $ticketNumber--TERM, Please remove desk phone and update phone directories for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
+
+    New-ServiceNowTask -ShortDescription "SERVICE CENTER: $ticketNumber--TERM, Please remove phone system and fax number for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate" `
+                          -Description "SERVICE CENTER: $ticketNumber--TERM, Please remove phone system and fax number for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
+
+    New-ServiceNowTask -ShortDescription "SERVICE CENTER: $ticketNumber--TERM, Please remove Webex for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate" `
+                          -Description "SERVICE CENTER: $ticketNumber--TERM, Please remove Webex for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
+
+    # Close the form after tasks are created
     $form.Close()
 })
 
 # Show the form
 $form.ShowDialog()
-
-# Collect input values
-$userDetails = @{}
-foreach ($key in $inputs.Keys) {
-    if ($inputs[$key] -is [System.Windows.Forms.ComboBox]) {
-        $userDetails[$key] = $inputs[$key].SelectedItem
-    } else {
-        $userDetails[$key] = $inputs[$key].Text
-    }
-}
-
-# Validate inputs
-if ($userDetails.Values -contains "") {
-    Write-Host "All fields are required. Please fill out the form completely." -ForegroundColor Red
-    exit
-}
-
-# ServiceNow Integration
-# Ensure the ServiceNow module is imported
-if (-not (Get-Module -Name ServiceNow -ListAvailable)) {
-    Write-Host "ServiceNow module is not installed. Please install it to proceed." -ForegroundColor Red
-    exit
-}
-
-# Connect to ServiceNow using SSO
-$ServiceNowInstance = $config["ServiceNowInstance"]
-
-try {
-    Connect-ServiceNow -Instance $ServiceNowInstance -UseSSO | Out-Null
-    Write-Host "Connected to ServiceNow successfully using SSO." -ForegroundColor Green
-} catch {
-    Write-Host "Failed to connect to ServiceNow using SSO. Please ensure your SSO configuration is correct." -ForegroundColor Red
-    exit
-}
-
-# Create a ServiceNow task to Disable Account
-$ticketNumber = $userDetails["Ticket Number"]
-$terminationDate = $userDetails["Date of Termination (MM/DD/YYYY)"]
-$disabledOU = $config["Disabled Accounts location"]
-
-$disableAccountTaskDetails = @{
-    short_description = "SERVICE CENTER: $ticketNumber--TERM, Please disable AD account for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) and move it to $disabledOU, $terminationDate"
-    description = "SERVICE CENTER: $ticketNumber--TERM, Please disable AD account for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) and move it to $disabledOU, $terminationDate"
-    assignment_group = "SN-ITD-Service Center"
-    assigned_to = $env:USERNAME
-    state = "Open"
-}
-
-try {
-    $disableAccountTask = New-ServiceNowRecord -Table "task" -Values $disableAccountTaskDetails
-    Write-Host "ServiceNow task created successfully for Disable Account. Task ID: $($disableAccountTask.sys_id)" -ForegroundColor Green
-} catch {
-    Write-Host "Failed to create ServiceNow task for Disable Account. Error: $_" -ForegroundColor Red
-    exit
-}
-
-# Create a ServiceNow task to remove Alert Sense
-$alertSenseTaskDetails = @{
-    short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) from Alert Sense, $terminationDate"
-    description = "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) from Alert Sense, $terminationDate"
-    assignment_group = "SN-ITD-Service Center"
-    assigned_to = "Arthur Mora"
-    state = "Open"
-}
-
-try {
-    $alertSenseTask = New-ServiceNowRecord -Table "task" -Values $alertSenseTaskDetails
-    Write-Host "ServiceNow task created successfully for Alert Sense. Task ID: $($alertSenseTask.sys_id)" -ForegroundColor Green
-} catch {
-    Write-Host "Failed to create ServiceNow task for Alert Sense. Error: $_" -ForegroundColor Red
-    exit
-}
-
-# Create a ServiceNow task to Disable Local Admin
-$disableLocalAdminTaskDetails = @{
-    short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) as a local administrator, $terminationDate"
-    description = "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) as a local administrator, $terminationDate"
-    assignment_group = "SN-ITD-Service Center"
-    assigned_to = $env:USERNAME
-    state = "Open"
-}
-
-try {
-    $disableLocalAdminTask = New-ServiceNowRecord -Table "task" -Values $disableLocalAdminTaskDetails
-    Write-Host "ServiceNow task created successfully for Disable Local Admin. Task ID: $($disableLocalAdminTask.sys_id)" -ForegroundColor Green
-} catch {
-    Write-Host "Failed to create ServiceNow task for Disable Local Admin. Error: $_" -ForegroundColor Red
-    exit
-}
-
-# Create a ServiceNow task to Remove Desk Phone and Update Directories
-$removeDeskPhoneTaskDetails = @{
-    short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove desk phone and update phone directories for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
-    description = "SERVICE CENTER: $ticketNumber--TERM, Please remove desk phone and update phone directories for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
-    assignment_group = "SN-ITD-Service Center"
-    assigned_to = $env:USERNAME
-    state = "Open"
-}
-
-try {
-    $removeDeskPhoneTask = New-ServiceNowRecord -Table "task" -Values $removeDeskPhoneTaskDetails
-    Write-Host "ServiceNow task created successfully for Remove Desk Phone and Update Directories. Task ID: $($removeDeskPhoneTask.sys_id)" -ForegroundColor Green
-} catch {
-    Write-Host "Failed to create ServiceNow task for Remove Desk Phone and Update Directories. Error: $_" -ForegroundColor Red
-    exit
-}
-
-# Create a ServiceNow task to Remove Phone System and Fax Number
-$removePhoneSystemTaskDetails = @{
-    short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove phone system and fax number for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
-    description = "SERVICE CENTER: $ticketNumber--TERM, Please remove phone system and fax number for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
-    assignment_group = "SN-ITD-Service Center"
-    assigned_to = $env:USERNAME
-    state = "Open"
-}
-
-try {
-    $removePhoneSystemTask = New-ServiceNowRecord -Table "task" -Values $removePhoneSystemTaskDetails
-    Write-Host "ServiceNow task created successfully for Remove Phone System and Fax Number. Task ID: $($removePhoneSystemTask.sys_id)" -ForegroundColor Green
-} catch {
-    Write-Host "Failed to create ServiceNow task for Remove Phone System and Fax Number. Error: $_" -ForegroundColor Red
-    exit
-}
-
-# Create a ServiceNow task to Remove Webex
-$removeWebexTaskDetails = @{
-    short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove Webex for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
-    description = "SERVICE CENTER: $ticketNumber--TERM, Please remove Webex for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
-    assignment_group = "SN-ITD-Service Center"
-    assigned_to = $env:USERNAME
-    state = "Open"
-}
-
-try {
-    $removeWebexTask = New-ServiceNowRecord -Table "task" -Values $removeWebexTaskDetails
-    Write-Host "ServiceNow task created successfully for Remove Webex. Task ID: $($removeWebexTask.sys_id)" -ForegroundColor Green
-} catch {
-    Write-Host "Failed to create ServiceNow task for Remove Webex. Error: $_" -ForegroundColor Red
-    exit
-}
