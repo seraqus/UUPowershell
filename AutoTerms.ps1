@@ -27,10 +27,18 @@ Disabled Accounts location: OU=DisabledAccounts,DC=yourdomain,DC=com
 }
 
 # Load configuration details
-$config = Get-Content $configPath | ForEach-Object {
+$config = @{}
+Get-Content $configPath | ForEach-Object {
     $key, $value = $_ -split ":", 2
-    @{ Key = $key.Trim(); Value = $value.Trim() }
-} | Group-Object -AsHashTable -Property Key
+    $key = $key.Trim()
+    $value = $value.Trim()
+    if (-not $config.ContainsKey($key)) {
+        $config[$key] = $value
+    } else {
+        Write-Host "Duplicate key '$key' found in configuration file. Please resolve this issue." -ForegroundColor Red
+        exit
+    }
+}
 
 # Validate required configuration keys
 if (-not $config["ServiceNowInstance"] -or -not $config["Disabled Accounts location"]) {
@@ -173,14 +181,14 @@ if (-not (Get-Module -Name ServiceNow -ListAvailable)) {
 $ServiceNowInstance = $config["ServiceNowInstance"]
 
 try {
-    $ServiceNowSession = Connect-ServiceNow -Instance $ServiceNowInstance -UseSSO
+    Connect-ServiceNow -Instance $ServiceNowInstance -UseSSO | Out-Null
     Write-Host "Connected to ServiceNow successfully using SSO." -ForegroundColor Green
 } catch {
     Write-Host "Failed to connect to ServiceNow using SSO. Please ensure your SSO configuration is correct." -ForegroundColor Red
     exit
 }
 
-# Create a ServiceNow task for Disable Account
+# Create a ServiceNow task to Disable Account
 $ticketNumber = $userDetails["Ticket Number"]
 $terminationDate = $userDetails["Date of Termination (MM/DD/YYYY)"]
 $disabledOU = $config["Disabled Accounts location"]
@@ -201,7 +209,7 @@ try {
     exit
 }
 
-# Create a ServiceNow task for Alert Sense
+# Create a ServiceNow task to remove Alert Sense
 $alertSenseTaskDetails = @{
     short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) from Alert Sense, $terminationDate"
     description = "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) from Alert Sense, $terminationDate"
@@ -218,7 +226,7 @@ try {
     exit
 }
 
-# Create a ServiceNow task for Disable Local Admin
+# Create a ServiceNow task to Disable Local Admin
 $disableLocalAdminTaskDetails = @{
     short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) as a local administrator, $terminationDate"
     description = "SERVICE CENTER: $ticketNumber--TERM, Please remove $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])) as a local administrator, $terminationDate"
@@ -232,5 +240,56 @@ try {
     Write-Host "ServiceNow task created successfully for Disable Local Admin. Task ID: $($disableLocalAdminTask.sys_id)" -ForegroundColor Green
 } catch {
     Write-Host "Failed to create ServiceNow task for Disable Local Admin. Error: $_" -ForegroundColor Red
+    exit
+}
+
+# Create a ServiceNow task to Remove Desk Phone and Update Directories
+$removeDeskPhoneTaskDetails = @{
+    short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove desk phone and update phone directories for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
+    description = "SERVICE CENTER: $ticketNumber--TERM, Please remove desk phone and update phone directories for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
+    assignment_group = "SN-ITD-Service Center"
+    assigned_to = $env:USERNAME
+    state = "Open"
+}
+
+try {
+    $removeDeskPhoneTask = New-ServiceNowRecord -Table "task" -Values $removeDeskPhoneTaskDetails
+    Write-Host "ServiceNow task created successfully for Remove Desk Phone and Update Directories. Task ID: $($removeDeskPhoneTask.sys_id)" -ForegroundColor Green
+} catch {
+    Write-Host "Failed to create ServiceNow task for Remove Desk Phone and Update Directories. Error: $_" -ForegroundColor Red
+    exit
+}
+
+# Create a ServiceNow task to Remove Phone System and Fax Number
+$removePhoneSystemTaskDetails = @{
+    short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove phone system and fax number for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
+    description = "SERVICE CENTER: $ticketNumber--TERM, Please remove phone system and fax number for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
+    assignment_group = "SN-ITD-Service Center"
+    assigned_to = $env:USERNAME
+    state = "Open"
+}
+
+try {
+    $removePhoneSystemTask = New-ServiceNowRecord -Table "task" -Values $removePhoneSystemTaskDetails
+    Write-Host "ServiceNow task created successfully for Remove Phone System and Fax Number. Task ID: $($removePhoneSystemTask.sys_id)" -ForegroundColor Green
+} catch {
+    Write-Host "Failed to create ServiceNow task for Remove Phone System and Fax Number. Error: $_" -ForegroundColor Red
+    exit
+}
+
+# Create a ServiceNow task to Remove Webex
+$removeWebexTaskDetails = @{
+    short_description = "SERVICE CENTER: $ticketNumber--TERM, Please remove Webex for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
+    description = "SERVICE CENTER: $ticketNumber--TERM, Please remove Webex for $($userDetails["First Name"]) $($userDetails["Last Name"]) ($($userDetails["Username"])), $terminationDate"
+    assignment_group = "SN-ITD-Service Center"
+    assigned_to = $env:USERNAME
+    state = "Open"
+}
+
+try {
+    $removeWebexTask = New-ServiceNowRecord -Table "task" -Values $removeWebexTaskDetails
+    Write-Host "ServiceNow task created successfully for Remove Webex. Task ID: $($removeWebexTask.sys_id)" -ForegroundColor Green
+} catch {
+    Write-Host "Failed to create ServiceNow task for Remove Webex. Error: $_" -ForegroundColor Red
     exit
 }
