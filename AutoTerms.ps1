@@ -1,5 +1,18 @@
 # Ensure the required module is imported
-Import-Module ActiveDirectory
+function Test-ActiveDirectoryModule {
+    if (Get-Module -ListAvailable -Name ActiveDirectory) {
+        Import-Module ActiveDirectory -ErrorAction Stop
+    } else {
+        [System.Windows.Forms.MessageBox]::Show(
+            "The Active Directory module is not available on this system. Please verify RSAT is installed before continuing.",
+            "Module Missing",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
+        #exit
+    }
+}
+Test-ActiveDirectoryModule
 
 # Define the path to the configuration file
 $configPath = "$env:LOCALAPPDATA\ADLookup\Config.txt"
@@ -191,10 +204,27 @@ $submitButton.Add_Click({
     }
 
     # ServiceNow Integration
-    if (-not (Get-Module -Name ServiceNow -ListAvailable)) {
-        Write-Host "ServiceNow module is not installed. Please install it to proceed." -ForegroundColor Red
-        return
+    function Test-ServiceNowModule {
+        if (-not (Get-Module -ListAvailable -Name ServiceNow)) {
+            Write-Host "The ServiceNow module is not installed. Attempting to install it..." -ForegroundColor Yellow
+            try {
+                Install-Module -Name ServiceNow -Force -Scope CurrentUser -ErrorAction Stop
+                Write-Host "ServiceNow module installed successfully." -ForegroundColor Green
+            } catch {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Failed to install the ServiceNow module. Please install it manually and try again.",
+                    "Module Installation Failed",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Error
+                )
+                exit
+            }
+        }
+        Import-Module ServiceNow -ErrorAction Stop
     }
+
+    # Ensure the ServiceNow module is installed and imported
+    Test-ServiceNowModule
 
     $ServiceNowInstance = $config["ServiceNowInstance"]
     try {
